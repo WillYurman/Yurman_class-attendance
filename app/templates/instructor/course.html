@@ -127,11 +127,11 @@
 {% if sessions and students %}
 <div class="card">
   <h2>Attendance Overview</h2>
-  <div class="attendance-grid">
-    <table style="font-size:0.8rem;">
+  <div class="attendance-grid" style="overflow-x:auto;">
+    <table style="font-size:0.8rem; border-collapse:collapse;">
       <thead>
         <tr>
-          <th style="min-width:160px;">Student</th>
+          <th style="min-width:160px; position:sticky; left:0; z-index:2; background:var(--legacy-green);">Student</th>
           {% for s in sessions %}
           <th class="att-cell" style="min-width:52px; font-size:0.7rem;">
             #{{ s.session_number }}<br>
@@ -147,8 +147,8 @@
       <tbody>
         {% for stat in student_stats %}
         {% set student = stat.student %}
-        <tr>
-          <td style="font-weight:500;">
+        <tr class="grid-row">
+          <td style="font-weight:500; position:sticky; left:0; z-index:1; background:#fff;">
             {% if stat.over_limit %}
               <span style="color:var(--red);">&#9888; </span>
             {% elif stat.at_limit %}
@@ -226,6 +226,10 @@
   .editable-cell { cursor:pointer; }
   .editable-cell:hover { outline: 2px solid var(--uo-green); outline-offset:-2px; }
   .att-opt:hover { background:#f0fdf4; }
+
+  /* Row hover highlight */
+  .grid-row:hover td { background:#f0fdf4 !important; }
+  .grid-row:hover td[style*="sticky"] { background:#e6f7ec !important; }
 </style>
 
 <script>
