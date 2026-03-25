@@ -130,13 +130,17 @@
       {% endif %}
     </p>
     {% endif %}
-    <div class="flex gap-1">
+    <textarea class="note-field" data-record-id="{{ record.id }}"
+      rows="2" placeholder="Add an instructor note…"
+      style="width:100%; font-size:0.8rem; border:1px solid #e5e7eb; border-radius:4px; padding:0.4rem 0.6rem; resize:vertical; margin-bottom:0.6rem; font-family:inherit;">{{ record.instructor_note or '' }}</textarea>
+    <div class="flex gap-1" style="align-items:center;">
       <form method="post" action="{{ url_for('instructor.accept_attendance', record_id=record.id) }}">
         <button class="btn btn-success btn-sm">Accept (Present)</button>
       </form>
       <form method="post" action="{{ url_for('instructor.reject_attendance', record_id=record.id) }}">
         <button class="btn btn-danger btn-sm">Mark Absent</button>
       </form>
+      <span class="note-saved-{{ record.id }} muted" style="font-size:0.75rem; opacity:0; transition:opacity 0.4s;">Saved ✓</span>
     </div>
   </div>
   {% endfor %}
@@ -161,6 +165,12 @@
       {% if record.reflection_text %}
       <p style="font-size:0.875rem; color:#374151; margin-top:0.25rem;">{{ record.reflection_text }}</p>
       {% endif %}
+      <div style="margin-top:0.4rem; display:flex; align-items:center; gap:0.5rem;">
+        <textarea class="note-field" data-record-id="{{ record.id }}"
+          rows="1" placeholder="Add a note…"
+          style="flex:1; font-size:0.78rem; border:1px solid #e5e7eb; border-radius:4px; padding:0.3rem 0.5rem; resize:vertical; font-family:inherit;">{{ record.instructor_note or '' }}</textarea>
+        <span class="note-saved-{{ record.id }} muted" style="font-size:0.72rem; opacity:0; transition:opacity 0.4s; white-space:nowrap;">Saved ✓</span>
+      </div>
     </div>
     {% endfor %}
   </div>
@@ -179,5 +189,28 @@
   </div>
 </div>
 {% endif %}
+
+<script>
+// Auto-save note fields on blur
+document.querySelectorAll('.note-field').forEach(function(ta) {
+  ta.addEventListener('blur', function() {
+    var recordId = ta.getAttribute('data-record-id');
+    var note = ta.value;
+    fetch('/attendance/' + recordId + '/note', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({note: note})
+    }).then(function(r){ return r.json(); }).then(function(data) {
+      if (data.success) {
+        var badge = document.querySelector('.note-saved-' + recordId);
+        if (badge) {
+          badge.style.opacity = '1';
+          setTimeout(function(){ badge.style.opacity = '0'; }, 2000);
+        }
+      }
+    });
+  });
+});
+</script>
 
 {% endblock %}

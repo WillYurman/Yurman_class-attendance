@@ -186,7 +186,7 @@ def _build_reflections_sheet(wb, course, students, sessions):
     ws = wb.create_sheet("Reflections")
     from app.models import Attendance
 
-    headers = ["Student", "Session #", "Date", "Reflection", "Word Count", "Flags"]
+    headers = ["Student", "Session #", "Date", "Reflection", "Word Count", "Flags", "Instructor Note"]
     for col, header in enumerate(headers, start=1):
         cell = ws.cell(1, col, header)
         cell.fill = FILL_HEADER
@@ -194,6 +194,7 @@ def _build_reflections_sheet(wb, course, students, sessions):
         ws.column_dimensions[get_column_letter(col)].width = 18
 
     ws.column_dimensions["D"].width = 60
+    ws.column_dimensions["G"].width = 35
 
     row_idx = 2
     for student in students:
@@ -212,4 +213,6 @@ def _build_reflections_sheet(wb, course, students, sessions):
                 flag_cell = ws.cell(row_idx, 6, flags)
                 if flags:
                     flag_cell.fill = FILL_FLAGGED
+                note_cell = ws.cell(row_idx, 7, record.instructor_note or "")
+                note_cell.alignment = Alignment(wrap_text=True)
                 row_idx += 1

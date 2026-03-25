@@ -162,16 +162,26 @@
               {% if record.flag_list %}
                 <td class="att-cell att-flagged editable-cell"
                     data-student="{{ student.id }}" data-session="{{ s.id }}" data-status="P*"
-                    title="Click to edit">P*</td>
+                    data-record-id="{{ record.id }}" data-note="{{ record.instructor_note or '' }}"
+                    title="Click to edit">P*{% if record.instructor_note %}<sup style="font-size:0.6em;">●</sup>{% endif %}</td>
               {% else %}
                 <td class="att-cell att-present editable-cell"
                     data-student="{{ student.id }}" data-session="{{ s.id }}" data-status="P"
-                    title="Click to edit">P</td>
+                    data-record-id="{{ record.id }}" data-note="{{ record.instructor_note or '' }}"
+                    title="Click to edit">P{% if record.instructor_note %}<sup style="font-size:0.6em;">●</sup>{% endif %}</td>
               {% endif %}
             {% else %}
-              <td class="att-cell att-absent editable-cell"
-                  data-student="{{ student.id }}" data-session="{{ s.id }}" data-status="A"
-                  title="Click to edit">A</td>
+              {% if record %}
+                <td class="att-cell att-absent editable-cell"
+                    data-student="{{ student.id }}" data-session="{{ s.id }}" data-status="A"
+                    data-record-id="{{ record.id }}" data-note="{{ record.instructor_note or '' }}"
+                    title="Click to edit">A{% if record.instructor_note %}<sup style="font-size:0.6em;">●</sup>{% endif %}</td>
+              {% else %}
+                <td class="att-cell att-absent editable-cell"
+                    data-student="{{ student.id }}" data-session="{{ s.id }}" data-status="A"
+                    data-record-id="" data-note=""
+                    title="Click to edit">A</td>
+              {% endif %}
             {% endif %}
           {% endfor %}
           <td class="att-cell {% if stat.over_limit %}att-absent{% elif stat.at_limit %}att-flagged{% endif %}">
@@ -198,10 +208,18 @@
 <div id="att-popover" style="
   display:none; position:fixed; z-index:1000;
   background:#fff; border:1px solid #d1d5db; border-radius:6px;
-  box-shadow:0 4px 16px rgba(0,0,0,0.12); overflow:hidden;">
+  box-shadow:0 4px 16px rgba(0,0,0,0.12); overflow:hidden; min-width:220px;">
   <button class="att-opt" data-val="P"  style="display:block;width:100%;padding:0.5rem 1.2rem;border:none;background:none;cursor:pointer;font-size:0.9rem;text-align:left;">✅ P — Present</button>
   <button class="att-opt" data-val="A"  style="display:block;width:100%;padding:0.5rem 1.2rem;border:none;background:none;cursor:pointer;font-size:0.9rem;text-align:left;">❌ A — Absent</button>
   <button class="att-opt" data-val="P*" style="display:block;width:100%;padding:0.5rem 1.2rem;border:none;background:none;cursor:pointer;font-size:0.9rem;text-align:left;">⚠️ P* — Present (flagged)</button>
+  <div style="border-top:1px solid #e5e7eb; padding:0.5rem 0.75rem;">
+    <textarea id="att-note-input" rows="2" placeholder="Add a note…"
+      style="width:100%; font-size:0.8rem; border:1px solid #e5e7eb; border-radius:4px; padding:0.3rem 0.5rem; resize:vertical; font-family:inherit; box-sizing:border-box;"></textarea>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.3rem;">
+      <span id="att-note-saved" style="font-size:0.72rem; color:#6b7280; opacity:0; transition:opacity 0.4s;">Saved ✓</span>
+      <button id="att-note-save" style="font-size:0.78rem; padding:0.2rem 0.6rem; border:1px solid var(--uo-green); border-radius:4px; background:none; color:var(--uo-green); cursor:pointer;">Save Note</button>
+    </div>
+  </div>
 </div>
 
 <style>
@@ -213,18 +231,36 @@
 <script>
 (function () {
   var popover = document.getElementById('att-popover');
+  var noteInput = document.getElementById('att-note-input');
+  var noteSaved = document.getElementById('att-note-saved');
+  var noteSaveBtn = document.getElementById('att-note-save');
   var activeCell = null;
   var courseId = {{ course.id }};
+
+  function updateCellDisplay(cell, status, note) {
+    var dot = note ? '<sup style="font-size:0.6em;">●</sup>' : '';
+    cell.innerHTML = status + dot;
+    cell.className = 'att-cell editable-cell ' +
+      (status === 'P' ? 'att-present' : status === 'A' ? 'att-absent' : 'att-flagged');
+    cell.setAttribute('data-status', status);
+    cell.setAttribute('data-note', note || '');
+  }
 
   document.querySelectorAll('.editable-cell').forEach(function(cell) {
     cell.addEventListener('click', function(e) {
       e.stopPropagation();
       activeCell = cell;
+      noteInput.value = cell.getAttribute('data-note') || '';
+      noteSaved.style.opacity = '0';
+      var noteDisabled = !cell.getAttribute('data-record-id');
+      noteInput.disabled = noteDisabled;
+      noteInput.placeholder = noteDisabled ? 'Set status first to add a note' : 'Add a note…';
       var rect = cell.getBoundingClientRect();
       popover.style.display = 'block';
-      var top = rect.bottom + window.scrollY + 4;
-      var left = rect.left + window.scrollX;
-      if (left + 220 > window.innerWidth) left = window.innerWidth - 225;
+      var top = rect.bottom + 4;
+      var left = rect.left;
+      if (left + 240 > window.innerWidth) left = window.innerWidth - 245;
+      if (top + 180 > window.innerHeight) top = rect.top - 184;
       popover.style.top = top + 'px';
       popover.style.left = left + 'px';
     });
@@ -246,17 +282,41 @@
       .then(function(r){ return r.json(); })
       .then(function(data) {
         if (data.success) {
-          activeCell.textContent = newStatus;
-          activeCell.className = 'att-cell editable-cell ' +
-            (newStatus === 'P' ? 'att-present' : newStatus === 'A' ? 'att-absent' : 'att-flagged');
-          activeCell.setAttribute('data-status', newStatus);
+          activeCell.setAttribute('data-record-id', data.record_id);
+          updateCellDisplay(activeCell, newStatus, activeCell.getAttribute('data-note'));
+          // Enable note field now that record exists
+          noteInput.disabled = false;
+          noteInput.placeholder = 'Add a note…';
         }
-        popover.style.display = 'none';
-        activeCell = null;
       })
-      .catch(function(){ popover.style.display = 'none'; activeCell = null; });
+      .catch(function(){});
     });
   });
+
+  noteSaveBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    if (!activeCell) return;
+    var recordId = activeCell.getAttribute('data-record-id');
+    if (!recordId) return;
+    var note = noteInput.value;
+    fetch('/attendance/' + recordId + '/note', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({note: note})
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(data) {
+      if (data.success) {
+        activeCell.setAttribute('data-note', note);
+        updateCellDisplay(activeCell, activeCell.getAttribute('data-status'), note);
+        noteSaved.style.opacity = '1';
+        setTimeout(function(){ noteSaved.style.opacity = '0'; }, 2000);
+      }
+    });
+  });
+
+  // Prevent popover from closing when clicking inside it
+  popover.addEventListener('click', function(e) { e.stopPropagation(); });
 
   document.addEventListener('click', function() {
     popover.style.display = 'none';

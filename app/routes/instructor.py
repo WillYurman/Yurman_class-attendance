@@ -285,6 +285,17 @@ def reject_attendance(record_id):
     return redirect(request.referrer or url_for("instructor.index"))
 
 
+@bp.route("/attendance/<int:record_id>/note", methods=["POST"])
+def save_note(record_id):
+    """AJAX endpoint — save an instructor note on an attendance record."""
+    from flask import jsonify
+    record = Attendance.query.get_or_404(record_id)
+    data = request.get_json()
+    record.instructor_note = (data.get("note") or "").strip() or None
+    db.session.commit()
+    return jsonify({"success": True})
+
+
 @bp.route("/course/<int:course_id>/attendance/set", methods=["POST"])
 def set_attendance(course_id):
     """AJAX endpoint — manually override a single attendance cell."""
@@ -332,7 +343,7 @@ def set_attendance(course_id):
             db.session.add(record)
 
     db.session.commit()
-    return jsonify({"success": True, "status": new_status})
+    return jsonify({"success": True, "status": new_status, "record_id": record.id, "note": record.instructor_note or ""})
 
 
 @bp.route("/course/<int:course_id>/export")

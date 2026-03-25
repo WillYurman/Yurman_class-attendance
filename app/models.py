@@ -128,6 +128,7 @@ class Attendance(db.Model):
 
     # Flag reasons (pipe-separated if multiple)
     flag_reasons = db.Column(db.Text)
+    instructor_note = db.Column(db.Text, nullable=True)
 
     def add_flag(self, reason):
         existing = self.flag_reasons or ""
