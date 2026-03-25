@@ -49,6 +49,16 @@
       <label for="session_date">Date</label>
       <input type="date" id="session_date" name="session_date"
              value="{{ today }}" style="margin-bottom:0;">
+      <script>
+        // Override server date with the instructor's local date
+        (function() {
+          var d = new Date();
+          var local = d.getFullYear() + '-' +
+            String(d.getMonth()+1).padStart(2,'0') + '-' +
+            String(d.getDate()).padStart(2,'0');
+          document.getElementById('session_date').value = local;
+        })();
+      </script>
     </div>
     <div style="flex:1; min-width:140px;">
       <label for="window_minutes">Window (min)</label>
