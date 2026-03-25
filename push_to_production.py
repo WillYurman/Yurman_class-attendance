@@ -56,8 +56,49 @@ if confirm != "yes":
 try:
     cur = dst.cursor()
 
+    # Drop and recreate tables with correct types
+    print("\nResetting production schema...")
+    cur.execute("DROP TABLE IF EXISTS attendance CASCADE")
+    cur.execute("DROP TABLE IF EXISTS sessions CASCADE")
+    cur.execute("DROP TABLE IF EXISTS students CASCADE")
+    cur.execute("DROP TABLE IF EXISTS courses CASCADE")
+    cur.execute("""
+        CREATE TABLE courses (
+            id SERIAL PRIMARY KEY,
+            crn TEXT, course_name TEXT, term TEXT, term_code TEXT, credits TEXT,
+            meeting_days TEXT, meeting_time TEXT, location TEXT, instructor_name TEXT,
+            free_absences INTEGER DEFAULT 2, deduction_per_absence FLOAT DEFAULT 5.0,
+            deduction_model TEXT, default_window_minutes INTEGER DEFAULT 10,
+            default_reflection_prompt TEXT, created_at TIMESTAMP, token TEXT UNIQUE
+        )
+    """)
+    cur.execute("""
+        CREATE TABLE students (
+            id SERIAL PRIMARY KEY,
+            course_id INTEGER REFERENCES courses(id),
+            last_name TEXT, first_name TEXT, middle_initial TEXT
+        )
+    """)
+    cur.execute("""
+        CREATE TABLE sessions (
+            id SERIAL PRIMARY KEY,
+            course_id INTEGER REFERENCES courses(id),
+            session_number INTEGER, session_date DATE, token TEXT UNIQUE,
+            open_at TIMESTAMP, close_at TIMESTAMP, reflection_prompt TEXT, summary TEXT
+        )
+    """)
+    cur.execute("""
+        CREATE TABLE attendance (
+            id SERIAL PRIMARY KEY,
+            session_id INTEGER REFERENCES sessions(id),
+            student_id INTEGER REFERENCES students(id),
+            submitted_at TIMESTAMP, reflection_text TEXT, ip_hash TEXT,
+            status TEXT, flag_reasons TEXT, instructor_note TEXT
+        )
+    """)
+
     # Clear production tables in dependency order
-    print("\nClearing production data...")
+    print("Clearing production data...")
     cur.execute("TRUNCATE TABLE attendance, sessions, students, courses RESTART IDENTITY CASCADE")
 
     # ── Courses ──────────────────────────────────────────────────────────────
