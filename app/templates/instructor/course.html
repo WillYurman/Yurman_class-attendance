@@ -40,9 +40,13 @@
   </div>
 </div>
 
-<!-- Open new session card -->
+<!-- Start new session card -->
 <div class="card">
-  <h2>Open New Session</h2>
+  <h2>Start New Session</h2>
+  <p class="muted" style="font-size:0.82rem; margin-bottom:1rem;">
+    ⏱ <strong>Start at least 5 minutes before class begins.</strong>
+    If the app has been inactive, it may take a minute or two to wake up before students can check in.
+  </p>
   <form method="post" action="{{ url_for('instructor.new_session', course_id=course.id) }}"
         style="display:flex; gap:1rem; flex-wrap:wrap; align-items:flex-end;">
     <div style="flex:1; min-width:160px;">
@@ -71,7 +75,7 @@
              placeholder="Leave blank for course default" style="margin-bottom:0;">
     </div>
     <div>
-      <button type="submit" class="btn btn-primary">Open Session</button>
+      <button type="submit" class="btn btn-primary">Start Session</button>
     </div>
   </form>
 </div>
