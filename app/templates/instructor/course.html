@@ -87,15 +87,16 @@
   <table>
     <thead>
       <tr>
-        <th>#</th><th>Date</th><th>Status</th><th>Present</th><th>Absent</th><th>Flagged</th><th>Actions</th>
+        <th>#</th><th>Date</th><th>Status</th><th>Present</th><th>Absent</th><th>Excused</th><th>Flagged</th><th>Actions</th>
       </tr>
     </thead>
     <tbody>
       {% for s in sessions|reverse %}
       {% set records = s.attendance_records %}
       {% set present_count = records|selectattr('status','equalto','present')|list|length %}
+      {% set excused_count = records|selectattr('status','equalto','excused')|list|length %}
       {% set total = students|length %}
-      {% set absent_count = total - present_count %}
+      {% set absent_count = total - present_count - excused_count %}
       {% set flagged_count = records|selectattr('flag_reasons')|list|length %}
       <tr>
         <td>{{ s.session_number }}</td>
@@ -111,6 +112,11 @@
         </td>
         <td><span class="badge badge-green">{{ present_count }}</span></td>
         <td><span class="badge badge-red">{{ absent_count }}</span></td>
+        <td>
+          {% if excused_count > 0 %}
+            <span class="badge badge-navy">{{ excused_count }}</span>
+          {% else %}—{% endif %}
+        </td>
         <td>
           {% if flagged_count > 0 %}
             <span class="badge badge-yellow">{{ flagged_count }}</span>
@@ -143,7 +149,8 @@
           </th>
           {% endfor %}
           <th>Absences</th>
-          <th>Free</th>
+          <th>Excused</th>
+          <th>Allowable</th>
           <th>Excess</th>
           <th>Deduction</th>
         </tr>
@@ -174,6 +181,11 @@
                     data-record-id="{{ record.id }}" data-note="{{ record.instructor_note or '' }}"
                     title="Click to edit">P{% if record.instructor_note %}<sup style="font-size:0.6em;">●</sup>{% endif %}</td>
               {% endif %}
+            {% elif record and record.status == 'excused' %}
+              <td class="att-cell att-excused editable-cell"
+                  data-student="{{ student.id }}" data-session="{{ s.id }}" data-status="E"
+                  data-record-id="{{ record.id }}" data-note="{{ record.instructor_note or '' }}"
+                  title="Click to edit">E{% if record.instructor_note %}<sup style="font-size:0.6em;">●</sup>{% endif %}</td>
             {% else %}
               {% if record %}
                 <td class="att-cell att-absent editable-cell"
@@ -191,6 +203,7 @@
           <td class="att-cell {% if stat.over_limit %}att-absent{% elif stat.at_limit %}att-flagged{% endif %}">
             {{ stat.absences }}
           </td>
+          <td class="att-cell">{{ stat.excused }}</td>
           <td class="att-cell">{{ course.free_absences }}</td>
           <td class="att-cell {% if stat.excess > 0 %}att-absent{% endif %}">{{ stat.excess }}</td>
           <td class="att-cell {% if stat.deduction > 0 %}att-absent{% endif %}">
@@ -202,8 +215,8 @@
     </table>
   </div>
   <p class="muted mt-1" style="font-size:0.75rem;">
-    P = Present &nbsp; A = Absent &nbsp; P* = Present with flag (instructor review needed) &nbsp;
-    &#9888; = at or over free-absence limit &nbsp; <em style="color:var(--uo-green);">Click any P/A/P* cell to edit it.</em>
+    P = Present &nbsp; A = Absent &nbsp; E = Excused &nbsp; P* = Present with flag (instructor review needed) &nbsp;
+    &#9888; = at or over allowable-absence limit &nbsp; <em style="color:var(--uo-green);">Click any cell to edit it.</em>
   </p>
 </div>
 {% endif %}
@@ -215,6 +228,7 @@
   box-shadow:0 4px 16px rgba(0,0,0,0.12); overflow:hidden; min-width:220px;">
   <button class="att-opt" data-val="P"  style="display:block;width:100%;padding:0.5rem 1.2rem;border:none;background:none;cursor:pointer;font-size:0.9rem;text-align:left;">✅ P — Present</button>
   <button class="att-opt" data-val="A"  style="display:block;width:100%;padding:0.5rem 1.2rem;border:none;background:none;cursor:pointer;font-size:0.9rem;text-align:left;">❌ A — Absent</button>
+  <button class="att-opt" data-val="E"  style="display:block;width:100%;padding:0.5rem 1.2rem;border:none;background:none;cursor:pointer;font-size:0.9rem;text-align:left;">🔵 E — Excused</button>
   <button class="att-opt" data-val="P*" style="display:block;width:100%;padding:0.5rem 1.2rem;border:none;background:none;cursor:pointer;font-size:0.9rem;text-align:left;">⚠️ P* — Present (flagged)</button>
   <div style="border-top:1px solid #e5e7eb; padding:0.5rem 0.75rem;">
     <textarea id="att-note-input" rows="2" placeholder="Add a note…"
@@ -230,6 +244,7 @@
   .editable-cell { cursor:pointer; }
   .editable-cell:hover { outline: 2px solid var(--uo-green); outline-offset:-2px; }
   .att-opt:hover { background:#f0fdf4; }
+  .att-excused { background:#dbeafe !important; color:#1e40af; }
 
   /* Row hover highlight */
   .grid-row:hover td { background:#fffbe6 !important; }
@@ -249,7 +264,7 @@
     var dot = note ? '<sup style="font-size:0.6em;">●</sup>' : '';
     cell.innerHTML = status + dot;
     cell.className = 'att-cell editable-cell ' +
-      (status === 'P' ? 'att-present' : status === 'A' ? 'att-absent' : 'att-flagged');
+      (status === 'P' ? 'att-present' : status === 'A' ? 'att-absent' : status === 'E' ? 'att-excused' : 'att-flagged');
     cell.setAttribute('data-status', status);
     cell.setAttribute('data-note', note || '');
   }

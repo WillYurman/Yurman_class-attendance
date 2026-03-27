@@ -207,11 +207,17 @@ def course(course_id):
             if matrix.get(student.id, {}).get(s.id) is None
             or matrix.get(student.id, {}).get(s.id).status == "absent"
         )
+        excused = sum(
+            1 for s in sessions
+            if matrix.get(student.id, {}).get(s.id) is not None
+            and matrix.get(student.id, {}).get(s.id).status == "excused"
+        )
         excess = max(0, absences - course.free_absences)
         deduction = excess * course.deduction_per_absence
         student_stats.append({
             "student": student,
             "absences": absences,
+            "excused": excused,
             "excess": excess,
             "deduction": deduction,
             "at_limit": absences == course.free_absences,
@@ -378,9 +384,9 @@ def set_attendance(course_id):
     data = request.get_json()
     student_id = data.get("student_id")
     session_id = data.get("session_id")
-    new_status = data.get("status")  # "P", "A", or "P*"
+    new_status = data.get("status")  # "P", "A", "P*", or "E"
 
-    if new_status not in ("P", "A", "P*"):
+    if new_status not in ("P", "A", "P*", "E"):
         return jsonify({"error": "Invalid status"}), 400
 
     student = Student.query.filter_by(id=student_id, course_id=course_id).first_or_404()
@@ -414,6 +420,13 @@ def set_attendance(course_id):
                 session_id=session.id, student_id=student.id,
                 status="present", flag_reasons="manual_flag"
             )
+            db.session.add(record)
+    elif new_status == "E":
+        if record:
+            record.status = "excused"
+            record.flag_reasons = None
+        else:
+            record = Attendance(session_id=session.id, student_id=student.id, status="excused")
             db.session.add(record)
 
     db.session.commit()

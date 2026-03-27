@@ -124,7 +124,7 @@ class Attendance(db.Model):
     submitted_at = db.Column(db.DateTime)
     reflection_text = db.Column(db.Text)
     ip_hash = db.Column(db.String(64))   # one-way SHA256 hash of IP
-    status = db.Column(db.String(20), default="absent")  # "present" | "absent" | "flagged"
+    status = db.Column(db.String(20), default="absent")  # "present" | "absent" | "flagged" | "excused"
 
     # Flag reasons (pipe-separated if multiple)
     flag_reasons = db.Column(db.Text)

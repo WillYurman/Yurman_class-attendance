@@ -16,6 +16,7 @@ from openpyxl.utils import get_column_letter
 FILL_PRESENT   = PatternFill("solid", fgColor="D6EEDC")  # tint of Grass Green
 FILL_ABSENT    = PatternFill("solid", fgColor="F4D0E1")  # tint of Berry
 FILL_FLAGGED   = PatternFill("solid", fgColor="FEF9CC")  # tint of UO Yellow
+FILL_EXCUSED   = PatternFill("solid", fgColor="DBEAFE")  # light blue
 FILL_HEADER    = PatternFill("solid", fgColor="104735")  # Legacy Green
 FILL_WARNING   = PatternFill("solid", fgColor="FEE11A")  # UO Yellow
 FILL_OVER_LIMIT= PatternFill("solid", fgColor="8D1D58")  # Berry
@@ -79,7 +80,7 @@ def _build_grid_sheet(wb, course, students, sessions):
     summary_col = len(sessions) + 2
     for label, col in [
         ("Absences", summary_col),
-        ("Free", summary_col + 1),
+        ("Allowable", summary_col + 1),
         ("Excess", summary_col + 2),
         ("Deduction %", summary_col + 3),
     ]:
@@ -111,6 +112,9 @@ def _build_grid_sheet(wb, course, students, sessions):
             elif record and record.status == "flagged":
                 status_char = "F"
                 fill = FILL_FLAGGED
+            elif record and record.status == "excused":
+                status_char = "E"
+                fill = FILL_EXCUSED
             else:
                 status_char = "A"
                 fill = FILL_ABSENT
@@ -136,15 +140,16 @@ def _build_grid_sheet(wb, course, students, sessions):
     ws.cell(legend_row, 1, "Legend:").font = FONT_BOLD
     ws.cell(legend_row, 2, "P = Present").fill = FILL_PRESENT
     ws.cell(legend_row, 3, "A = Absent").fill = FILL_ABSENT
-    ws.cell(legend_row, 4, "P* = Present (flagged)").fill = FILL_FLAGGED
-    ws.cell(legend_row, 5, "F = Flagged").fill = FILL_FLAGGED
+    ws.cell(legend_row, 4, "E = Excused").fill = FILL_EXCUSED
+    ws.cell(legend_row, 5, "P* = Present (flagged)").fill = FILL_FLAGGED
+    ws.cell(legend_row, 6, "F = Flagged").fill = FILL_FLAGGED
 
 
 def _build_summary_sheet(wb, course, students, sessions):
     ws = wb.create_sheet("Summary")
     from app.models import Attendance
 
-    headers = ["Student", "Total Sessions", "Present", "Absent", "Free Absences",
+    headers = ["Student", "Total Sessions", "Present", "Absent", "Excused", "Allowable Absences",
                "Excess Absences", "Grade Deduction", "Notes"]
     for col, header in enumerate(headers, start=1):
         cell = ws.cell(1, col, header)
@@ -160,7 +165,12 @@ def _build_summary_sheet(wb, course, students, sessions):
         present = Attendance.query.filter_by(
             student_id=student.id, status="present"
         ).count()
-        absent = total - present
+        absent = Attendance.query.filter_by(
+            student_id=student.id, status="absent"
+        ).count()
+        excused = Attendance.query.filter_by(
+            student_id=student.id, status="excused"
+        ).count()
         excess = max(0, absent - course.free_absences)
         deduction = excess * course.deduction_per_absence
 
@@ -174,12 +184,13 @@ def _build_summary_sheet(wb, course, students, sessions):
         ws.cell(row_idx, 2, total)
         ws.cell(row_idx, 3, present)
         ws.cell(row_idx, 4, absent)
-        ws.cell(row_idx, 5, course.free_absences)
-        ws.cell(row_idx, 6, excess)
-        deduction_cell = ws.cell(row_idx, 7, f"-{deduction:.1f}%" if deduction > 0 else "None")
+        ws.cell(row_idx, 5, excused)
+        ws.cell(row_idx, 6, course.free_absences)
+        ws.cell(row_idx, 7, excess)
+        deduction_cell = ws.cell(row_idx, 8, f"-{deduction:.1f}%" if deduction > 0 else "None")
         if deduction > 0:
             deduction_cell.font = FONT_WARNING
-        ws.cell(row_idx, 8, notes)
+        ws.cell(row_idx, 9, notes)
 
 
 def _build_reflections_sheet(wb, course, students, sessions):
